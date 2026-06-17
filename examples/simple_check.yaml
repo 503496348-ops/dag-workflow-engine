@@ -1,0 +1,26 @@
+# 简单健康检查 — 最小工作流示例
+
+workflow:
+  id: simple-check
+  name: 简单健康检查
+  max_parallel: 2
+
+  nodes:
+    - id: ping-gateway
+      name: Ping Gateway
+      action: ping
+      params:
+        target: gateway
+
+    - id: ping-llm
+      name: Ping LLM
+      action: ping
+      params:
+        target: llm
+
+    - id: report
+      name: 汇总结果
+      action: report
+      depends_on:
+        - ping-gateway
+        - ping-llm

@@ -1,0 +1,33 @@
+# 审批工作流示例 — 高危操作需人工确认
+
+workflow:
+  id: safe-restart
+  name: 安全重启流程
+  max_parallel: 1
+
+  nodes:
+    - id: diagnose
+      name: 诊断问题
+      action: diagnose
+
+    - id: stop-service
+      name: 停止服务
+      action: stop
+      depends_on:
+        - diagnose
+      requires_approval: true
+      approval_reason: "停止服务会导致短暂不可用"
+
+    - id: restart
+      name: 重启服务
+      action: restart
+      depends_on:
+        - stop-service
+
+    - id: verify
+      name: 验证服务
+      action: verify
+      depends_on:
+        - restart
+      retry_on_failure: true
+      max_retries: 3

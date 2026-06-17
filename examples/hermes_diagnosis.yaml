@@ -1,0 +1,78 @@
+# Hermes Agent 全链路健康诊断工作流
+# 白龙马医生使用 DAG 引擎执行多步诊断
+
+workflow:
+  id: hermes-full-diagnosis
+  name: Hermes Agent 全链路健康诊断
+  description: 检查 Gateway → LLM → 记忆系统 → 技能加载 → 生成报告
+  max_parallel: 3
+  global_timeout: 600
+
+  nodes:
+    # 第一层：并行基础检查
+    - id: check-gateway
+      name: 检查 Gateway 连接
+      action: check_service
+      params:
+        service: gateway
+      timeout_seconds: 30
+
+    - id: check-llm-provider
+      name: 检查 LLM Provider
+      action: check_service
+      params:
+        service: llm_provider
+      timeout_seconds: 30
+
+    - id: check-telegram-bot
+      name: 检查 Telegram Bot
+      action: check_service
+      params:
+        service: telegram
+      timeout_seconds: 30
+
+    # 第二层：依赖基础检查结果
+    - id: check-memory-system
+      name: 检查记忆系统（fact_store + MEMORY.md）
+      action: check_memory
+      depends_on:
+        - check-gateway
+      timeout_seconds: 60
+
+    - id: check-skills
+      name: 检查技能加载
+      action: check_skills
+      depends_on:
+        - check-gateway
+      timeout_seconds: 30
+
+    # 第三层：深度诊断（条件触发）
+    - id: deep-diagnose
+      name: 深度诊断（仅当基础检查通过时）
+      action: deep_diagnose
+      depends_on:
+        - check-memory-system
+        - check-skills
+      condition: "check-memory-system.succeeded"
+      timeout_seconds: 120
+
+    # 第四层：修复（需审批）
+    - id: fix-issues
+      name: 自动修复发现的问题
+      action: auto_fix
+      depends_on:
+        - deep-diagnose
+      requires_approval: true
+      approval_reason: "自动修复可能影响运行中的服务"
+      timeout_seconds: 300
+
+    # 第五层：报告
+    - id: generate-report
+      name: 生成诊断报告
+      action: generate_report
+      depends_on:
+        - check-llm-provider
+        - check-telegram-bot
+        - deep-diagnose
+        - fix-issues
+      timeout_seconds: 30
